@@ -1,5 +1,21 @@
 <html>
     <head>
+        <style>
+            .icon {
+                width: 1.5em;
+                height: 1.5em;
+                display: inline-block;
+                position: relative;
+            }
+
+            .icon-streamer::after {
+                content: "";
+                background: url("");
+                width: 100%;
+                height: 100%;
+                display: block;
+            }
+        </style>
         <script type="module">
             import vstream from '../vstream.js';
 
@@ -17,8 +33,8 @@
                 const el = document.createElement('div');
                 el.innerHTML = `
                     <div>
-                        ${message.chatter.badges.map(b => `<i class="icon-${b}"></i>)`).join('')}
-                        <span style="color: ${message.chatter.color}">${message.chatter.displayName}</span>
+                        ${message.profile.badges.map(b => `<i class="icon icon-${b}"></i>)`).join('')}
+                        <span style="color: ${message.profile.color}">${message.profile.displayName}</span>
                     </div>
                     <p>${message.text}</p>
                 `;

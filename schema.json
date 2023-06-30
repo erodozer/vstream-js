@@ -20,9 +20,14 @@
       "type": "object",
       "properties": {
         "__typename": { "const": "EmojiChatNode" },
+        "id": { "type": "string" },
         "channelID": { "type": "string", "minLength": 1 },
-        "username": { "type": "string", "minLength": 1 }
-      }
+        "altText": { "type": "string", "default": "" },
+        "actionText": { "type": "string", "minLength": 1 },
+        "size28Src": { "type": "string", "format": "uri" },
+        "size2Srcset": { "type": "string" }
+      },
+      "required": ["id", "actionText"]
     },
     "ParagraphChatNode": {
       "type": "object",

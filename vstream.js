@@ -25,6 +25,27 @@ const decoder = new Decoder({
   structuredClone: true,
 });
 
+function buildHtmlMessage(str, node) {
+  switch (node.__typename) {
+    case 'TextChatNode':
+      return `${str}<span>${node.text}<span>`;
+    case 'LinkChatNode':
+      return `${str}<a class="vstream-link" href="${node.href}">${node.href}</a>${node.nodes.reduce(buildHtmlMessage, '')}`;
+    case 'MentionChatNode':
+      return `${str}<a class="vstream-mention">@${node.username}</a>`;
+    case 'EmojiChatNode':
+      return `${str}${
+        node.emoji.size28Src
+          ? `<img src="${node.emoji.size28Src}" class="vstream-emoji" />`
+          : `<span>${node.emoji.altText}</span>`
+      }`;
+    case 'ParagraphChatNode':
+      return `${str}<p>${node.nodes.reduce(buildHtmlMessage, '')}</p>`;
+    default:
+      return str;
+  }
+}
+
 /**
  * Adapt Vstream messages into more friendly, generic types
  * already suited for HTML rendering
@@ -34,18 +55,36 @@ const handlers = {
     return {
       type: 'chat-message',
       event: {
-        chatter: {
-
+        profile: {
+          id: message.chatter.userID,
+          channelId: message.chatter.channelID,
+          displayName: message.chatter.username,
+          avatar: message.chatter.pfp.url,
+          badges: message.chatterBadges,
+          color: message.chatterColor,
         },
+        text: message.nodes.reduce(buildHtmlMessage, ''),
       },
     };
   },
 };
 
+/**
+ * Creates a new connection to VStream's WS API ("Suika")
+ *
+ * @param {string} channelId
+ * @param {string} videoId
+ * @returns
+ */
 function connect(channelId, videoId) {
   const publisher = mitt();
+  const profiles = {};
+  const chatHistory = {
+    sizeLimit: 10,
+    messages: [],
+  };
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const vstreamListener = new WebSocket(
       `wss://vstream.com/suika/api/room/${channelId}/${videoId}/websocket`,
     );
@@ -55,9 +94,9 @@ function connect(channelId, videoId) {
       //   ie. Zod errors come back as JSON
       // we only care about properly encoded messages
       if (!(event.data instanceof Blob)) {
-        return
+        return;
       }
-      
+
       const buffer = await event.data.arrayBuffer();
       const obj = decoder.decode(buffer);
 
@@ -72,11 +111,28 @@ function connect(channelId, videoId) {
       mitt.emit('raw-message', obj);
     });
 
+    // populate the chat history
+    mitt.on('chat-message', (msg) => {
+      chatHistory.messages.unshift(msg);
+      if (chatHistory.messages.length > chatHistory.sizeLimit) {
+        chatHistory.messages.pop();
+      }
+    });
+
+    // resolve the Promise once the socket is connected
     vstreamListener.addEventListener('open', () => resolve({
       connection: vstreamListener,
+      channel: {
+        channelId,
+        videoId,
+      },
       addEventListener(type, cb) { publisher.on(type, cb); },
       removeEventListener(type, cb) { publisher.off(type, cb); },
+      chatHistory,
+      profiles,
     }));
+
+    vstreamListener.addEventListener('close', reject);
   });
 }
 
