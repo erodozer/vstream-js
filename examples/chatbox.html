@@ -1,0 +1,36 @@
+<html>
+    <head>
+        <script type="module">
+            import vstream from '../vstream.js';
+
+            const params = new URLSearchParams(window.location.search);
+            const channelId = params.get('channelId');
+            const videoId = params.get('videoId');
+            vstream(channelId, videoId).then(
+                ch => {
+                    ch.addEventListener('chat-message', onChatMessage)
+                }
+            );
+
+            const chatbox = document.querySelector('#chatbox');
+            function onChatMessage(message) {
+                const el = document.createElement('div');
+                el.innerHTML = `
+                    <div>
+                        ${message.chatter.badges.map(b => `<i class="icon-${b}"></i>)`).join('')}
+                        <span style="color: ${message.chatter.color}">${message.chatter.displayName}</span>
+                    </div>
+                    <p>${message.text}</p>
+                `;
+                chatbox.appendChild(el);
+
+                if (chatbox.childElementCount > 10) {
+                    chatbox.firstChild.remove();
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <div id="chatbox"></div>
+    </body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "name": "vstream",
+  "version": "0.0.1",
+  "description": "Websocket consumer library for VStream API",
+  "main": "vstream.js",
+  "directories": {},
+  "type": "module",
+  "browser": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erodozer/vstream-js.git"
+  },
+  "keywords": [
+    "vstream",
+    "consumer",
+    "websocket",
+    "streamer",
+    "vtuber",
+    "integration"
+  ],
+  "author": "erodozer",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/erodozer/vstream-js/issues"
+  },
+  "homepage": "https://github.com/erodozer/vstream-js#readme",
+  "dependencies": {
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1",
+    "cbor-x": "^1.5.3",
+    "mitt": "^3.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.43.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.27.5"
+  }
+}

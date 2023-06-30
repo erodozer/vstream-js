@@ -1,0 +1,160 @@
+{
+  "$id": "http://vstream.com/schemas/suika/v1.schema.json",
+  "definitions": {
+    "TextNode": {
+      "type": "object",
+      "properties": {
+        "__typename": { "const": "TextChatNode" },
+        "text": { "type": "string", "minLength": 1 }
+      }
+    },
+    "MentionedNode": {
+      "type": "object",
+      "properties": {
+        "__typename": { "const": "MentionedChatNode" },
+        "channelID": { "type": "string", "minLength": 1 },
+        "username": { "type": "string", "minLength": 1 }
+      }
+    },
+    "EmojiNode": {
+      "type": "object",
+      "properties": {
+        "__typename": { "const": "EmojiChatNode" },
+        "channelID": { "type": "string", "minLength": 1 },
+        "username": { "type": "string", "minLength": 1 }
+      }
+    },
+    "ParagraphChatNode": {
+      "type": "object",
+      "properties": {
+        "__typename": { "const": "ParagraphChatNode" },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ChatNode"
+          }
+        }
+      }
+    },
+    "LinkChatNode": {
+      "type": "object",
+      "properties": {
+        "__typename": { "const": "LinkChatNode" },
+        "href": { "type": "string", "minLength": 1 },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "discriminator": { "propertyName": "__typename" },
+            "oneOf": [
+              { "$ref": "#/definitions/TextNode" },
+              { "$ref": "#/definitions/EmojiNode" }
+            ],
+            "required": ["__typename"]
+          }
+        }
+      }
+    },
+    "ChatNode": {
+      "type": "object",
+      "discriminator": { "propertyName": "__typename" },
+      "oneOf": [
+        { "$ref": "#/definitions/TextNode" },
+        { "$ref": "#/definitions/MentionedNode" },
+        { "$ref": "#/definitions/EmojiNode" },
+        { "$ref": "#/definitions/ParagraphChatNode" },
+        { "$ref": "#/definitions/LinkChatNode" }
+      ],
+      "required": ["__typename"]
+    }
+  },
+  "type": "object",
+  "discriminator": { "propertyName": "__typename" },
+  "required": ["__typename"],
+  "oneOf": [
+    {
+      "properties": {
+        "__typename": { "const": "ChatCreatedEvent" },
+        "id": {
+          "type": "string", "format": "uuid"
+        },
+        "chatter": {
+          "type": "object",
+          "properties": {
+            "channelID": {
+              "type": "string", "format": "uuid"
+            },
+            "isVTuber": {
+              "type": "boolean", "default": false
+            },
+            "pfp": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string", "format": "uri"
+                }
+              }
+            },
+            "userID": {
+              "type": "string", "format": "uuid"
+            },
+            "username": {
+              "type": "string", "minLength": 1
+            }
+          }
+        },
+        "chatterBadges": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["streamer", "moderator", "vteam"]
+          }
+        },
+        "chatterColor": {
+          "type": "string"
+        },
+        "chatterStanding": {
+          "type": "object",
+          "discriminator": { "propertyName": "__typename" },
+          "required": ["__typename"],
+          "oneOf": [
+            {
+              "properties": {
+                "__typename": { "const": "BannedChatterStanding" }
+              }
+            },
+            {
+              "properties": {
+                "__typename": { "const": "GoodChatterStanding" }
+              }
+            }, 
+            {
+              "properties": {
+                "__typename": { "const": "ModeratorChatterStanding" }
+              }
+            },
+            {
+              "properties": {
+                "__typename": { "const": "PlatformBannedChatterStanding" }
+              }
+            },
+            {
+              "properties": {
+                "__typename": { "const": "TimedOutChatterStanding" },
+                "timedOutUntil": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ChatNode"
+          }
+        }
+      }
+    }
+  ]
+}
