@@ -3,6 +3,8 @@
 This is just supposed to be a simple client-side consumer library for [VStream](https://vstream.com/)'s Websocket API.
 Ideally will hold anyone over until an official client exists for JS that can be used for overlays.
 
+*NOTE* Not all possible API events are planned to be modeled or supported when developing this library.  Since the primary intention is to be used for overlays, the focus is solely on supporting Chat and User/Viewer events. Events relating to stream start/stop and user state (moderator Add/Remove), will not be included.
+
 ## Current Known Details
 
 What's in here is what has been discovered by sifting through the Vstream website's frontend bundled code to understand the kinds of messages are received.

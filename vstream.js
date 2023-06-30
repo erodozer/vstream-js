@@ -55,15 +55,74 @@ const handlers = {
     return {
       type: 'chat-message',
       event: {
+        id: message.chat.id,
         profile: {
-          id: message.chatter.userID,
-          channelId: message.chatter.channelID,
-          displayName: message.chatter.username,
-          avatar: message.chatter.pfp.url,
-          badges: message.chatterBadges,
-          color: message.chatterColor,
+          id: message.chat.chatter.userID,
+          channelId: message.chat.chatter.channelID,
+          displayName: message.chat.chatter.username,
+          avatar: message.chat.chatter.pfp.url,
+          badges: message.chat.chatterBadges,
+          color: message.chat.chatterColor,
         },
-        text: message.nodes.reduce(buildHtmlMessage, ''),
+        text: message.chat.nodes.reduce(buildHtmlMessage, ''),
+      },
+    };
+  },
+  ChatDeletedEvent(message) {
+    return {
+      type: 'chat-deleted',
+      event: {
+        id: message.chat.id,
+      },
+    };
+  },
+  UserChatsDeletedEvent(message) {
+    return {
+      type: 'chat-deleted',
+      event: {
+        userId: message.userID,
+      },
+    };
+  },
+  UserBannedEvent(message) {
+    return [
+      {
+        type: 'user-removed',
+        event: {
+          userId: message.userID,
+        },
+      },
+      {
+        type: 'chat-deleted',
+        event: {
+          userId: message.userID,
+        },
+      }];
+  },
+  UserTimedOutEvent(message) {
+    return [
+      {
+        type: 'user-removed',
+        event: {
+          userId: message.userID,
+        },
+      },
+      {
+        type: 'chat-deleted',
+        event: {
+          userId: message.userID,
+        },
+      }];
+  },
+  ViewerJoinedEvent(message) {
+    return {
+      type: 'user-added',
+      event: {
+        id: message.viewer.userID,
+        channelId: message.viewer.channelID,
+        displayName: message.viewer.displayName,
+        username: message.viewer.username,
+        avatar: message.viewer.pfp.url,
       },
     };
   },
@@ -102,8 +161,13 @@ function connect(channelId, videoId) {
 
       // if (validate(obj)) {
       if (obj.__typename in obj) {
-        const env = handlers[obj.__typename](obj);
-        mitt.emit(env.type, env.event);
+        let ev = handlers[obj.__typename](obj);
+        if (!Array.isArray(ev)) {
+          ev = [ev];
+        }
+        ev.forEach((msg) => {
+          mitt.emit(msg.type, msg.event);
+        });
       }
 
       // emit the message regardless in case the client
@@ -117,6 +181,43 @@ function connect(channelId, videoId) {
       if (chatHistory.messages.length > chatHistory.sizeLimit) {
         chatHistory.messages.pop();
       }
+    });
+
+    mitt.on('chat-deleted', (msg) => {
+      chatHistory.messages = chatHistory.messages.filter(
+        (chat) => {
+          const {
+            id,
+            profile: {
+              id: userId,
+            },
+          } = chat;
+
+          if ('id' in msg) {
+            return id !== msg.id;
+          }
+
+          if ('userId' in msg) {
+            return userId !== msg.id;
+          }
+
+          return true;
+        },
+      );
+    });
+
+    mitt.on('user-added', (msg) => {
+      const {
+        [msg.id]: profile = {},
+      } = profiles;
+      profiles[msg.id] = {
+        ...profile,
+        ...msg.profile,
+      };
+    });
+
+    mitt.on('user-removed', ({ userId }) => {
+      delete profiles[userId];
     });
 
     // resolve the Promise once the socket is connected

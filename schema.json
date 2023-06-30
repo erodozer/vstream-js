@@ -1,6 +1,38 @@
 {
   "$id": "http://vstream.com/schemas/suika/v1.schema.json",
   "definitions": {
+    "Profile": {
+      "type": "object",
+      "properties": {
+        "channelID": {
+          "type": "string", "format": "uuid"
+        },
+        "isVTuber": {
+          "type": "boolean", "default": false
+        },
+        "isModerator": {
+          "type": "boolean", "default": false
+        },
+        "pfp": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string", "format": "uri"
+            }
+          }
+        },
+        "userID": {
+          "type": "string", "format": "uuid"
+        },
+        "username": {
+          "type": "string", "minLength": 1
+        },
+        "displayName": {
+          "type": "string", "minLength": 1
+        }
+      },
+      "required": ["channelID", "displayName", "userID", "username"]
+    },
     "TextNode": {
       "type": "object",
       "properties": {
@@ -74,92 +106,137 @@
     }
   },
   "type": "object",
-  "discriminator": { "propertyName": "__typename" },
-  "required": ["__typename"],
-  "oneOf": [
+  "required": ["__typename", "timestamp"],
+  "allOf": [
     {
       "properties": {
-        "__typename": { "const": "ChatCreatedEvent" },
-        "id": {
-          "type": "string", "format": "uuid"
-        },
-        "chatter": {
-          "type": "object",
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    {
+      "discriminator": { "propertyName": "__typename" },
+      "required": ["__typename"],
+      "oneOf": [
+        {
           "properties": {
-            "channelID": {
+            "__typename": { "const": "ChatCreatedEvent" },
+            "id": {
               "type": "string", "format": "uuid"
             },
-            "isVTuber": {
-              "type": "boolean", "default": false
+            "chatter": {
+              "$ref": "#/definitions/Profile"
             },
-            "pfp": {
+            "chatterBadges": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["streamer", "moderator", "vteam"]
+              }
+            },
+            "chatterColor": {
+              "type": "string"
+            },
+            "chatterStanding": {
+              "type": "object",
+              "discriminator": { "propertyName": "__typename" },
+              "required": ["__typename"],
+              "oneOf": [
+                {
+                  "properties": {
+                    "__typename": { "const": "BannedChatterStanding" }
+                  }
+                },
+                {
+                  "properties": {
+                    "__typename": { "const": "GoodChatterStanding" }
+                  }
+                }, 
+                {
+                  "properties": {
+                    "__typename": { "const": "ModeratorChatterStanding" }
+                  }
+                },
+                {
+                  "properties": {
+                    "__typename": { "const": "PlatformBannedChatterStanding" }
+                  }
+                },
+                {
+                  "properties": {
+                    "__typename": { "const": "TimedOutChatterStanding" },
+                    "timedOutUntil": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            },
+            "nodes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ChatNode"
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "__typename": { "const": "ChatDeletedEvent" },
+            "chat": {
               "type": "object",
               "properties": {
-                "url": {
-                  "type": "string", "format": "uri"
-                }
-              }
-            },
-            "userID": {
-              "type": "string", "format": "uuid"
-            },
-            "username": {
-              "type": "string", "minLength": 1
-            }
-          }
-        },
-        "chatterBadges": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["streamer", "moderator", "vteam"]
-          }
-        },
-        "chatterColor": {
-          "type": "string"
-        },
-        "chatterStanding": {
-          "type": "object",
-          "discriminator": { "propertyName": "__typename" },
-          "required": ["__typename"],
-          "oneOf": [
-            {
-              "properties": {
-                "__typename": { "const": "BannedChatterStanding" }
-              }
-            },
-            {
-              "properties": {
-                "__typename": { "const": "GoodChatterStanding" }
-              }
-            }, 
-            {
-              "properties": {
-                "__typename": { "const": "ModeratorChatterStanding" }
-              }
-            },
-            {
-              "properties": {
-                "__typename": { "const": "PlatformBannedChatterStanding" }
-              }
-            },
-            {
-              "properties": {
-                "__typename": { "const": "TimedOutChatterStanding" },
-                "timedOutUntil": {
-                  "type": "string"
+                "id": { "type": "string" },
+                "deletedBy": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "username": { "type": "string" }
+                  }
                 }
               }
             }
-          ]
+          }
         },
-        "nodes": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/ChatNode"
+        {
+          "properties": {
+            "__typename": { "const": "UserBannedEvent" },
+            "userID": { "type": "string", "format": "uuid" }
+          }
+        },
+        {
+          "properties": {
+            "__typename": { "const": "UserChatsDeletedEvent" },
+            "userID": { "type": "string", "format": "uuid" }
+          }
+        },{
+          "properties": {
+            "__typename": { "const": "UserTimedOutEvent" },
+            "userID": { "type": "string", "format": "uuid" },
+            "timedOutUntil": { "type": "string", "format": "date-time" }
+          }
+        },
+        {
+          "properties": {
+            "__typename": { "const": "ViewerJoinedEvent" },
+            "viewer": {
+              "$ref": "#/definitions/Profile"
+            }
+          }
+        },
+        {
+          "properties": {
+            "__typename": { "const": "ViewerLeftEvent" },
+            "channelID": { "type": "string", "format": "uuid" },
+            "userID": { "type": "string", "format": "uuid" }
+          }
+        },
+        {
+          "properties": {
+            "__typename": { "const": "ViewerCountUpdatedEvent" },
+            "viewerCount": { "type": "string", "minLength": 1 }
           }
         }
-      }
+      ]
     }
   ]
 }
