@@ -156,7 +156,7 @@ function connect(channelId, videoId) {
         return;
       }
 
-      const buffer = await event.data.arrayBuffer();
+      const buffer = new Uint8Array(await event.data.arrayBuffer());
       const obj = decoder.decode(buffer);
 
       // if (validate(obj)) {
@@ -166,24 +166,26 @@ function connect(channelId, videoId) {
           ev = [ev];
         }
         ev.forEach((msg) => {
-          mitt.emit(msg.type, msg.event);
+          publisher.emit(msg.type, msg.event);
         });
       }
 
       // emit the message regardless in case the client
       // doesn't want to use our simplified types
-      mitt.emit('raw-message', obj);
+      publisher.emit('raw-message', obj);
     });
 
+    publisher.on('raw-message', (e) => console.log(JSON.stringify(e)));
+
     // populate the chat history
-    mitt.on('chat-message', (msg) => {
+    publisher.on('chat-message', (msg) => {
       chatHistory.messages.unshift(msg);
       if (chatHistory.messages.length > chatHistory.sizeLimit) {
         chatHistory.messages.pop();
       }
     });
 
-    mitt.on('chat-deleted', (msg) => {
+    publisher.on('chat-deleted', (msg) => {
       chatHistory.messages = chatHistory.messages.filter(
         (chat) => {
           const {
@@ -206,7 +208,7 @@ function connect(channelId, videoId) {
       );
     });
 
-    mitt.on('user-added', (msg) => {
+    publisher.on('user-added', (msg) => {
       const {
         [msg.id]: profile = {},
       } = profiles;
@@ -216,7 +218,7 @@ function connect(channelId, videoId) {
       };
     });
 
-    mitt.on('user-removed', ({ userId }) => {
+    publisher.on('user-removed', ({ userId }) => {
       delete profiles[userId];
     });
 
