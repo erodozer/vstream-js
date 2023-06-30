@@ -22,17 +22,17 @@ The library uses [Mitt](https://github.com/developit/mitt) as a simple Event Pub
 
 #### chat-message
 
-Simplified chat message with text preformatted for HTML rendering.
+Simplified chat message with text preformatted for HTML rendering.  Elements within the text include custom classes, which can be styled easily in your overlays.  Easiest way to use the generated text is to assign it to the innerHTML of a DOMElement.
 
 #### raw-message
 
 This is the raw, JSON representation of the message received from the websocket.
 It's not guaranteed to have been validated as supported by the library.
-Use this if you want to have absolute control over what's being sent
+Use this if you want to have absolute control over what's being handled.
 
 ### Helper Functions
 
-As this library is mainly for overlay or simple JS bot development, there are some abstractions provided on top of simply parsing 
+As this library is mainly for overlay or simple JS bot development, there are some abstractions provided on top of simply parsing
 
 ### Profile Cache
 
@@ -40,4 +40,4 @@ TODO easily keep track of who's chatting.  Profile information usually comes dow
 
 ### Chat History
 
-TODO helper that collects chat messages, handling user bans and delete events for you so you don't have to worry about building it yourself.  Chatbox overlays can simply reference this
+Helper that collects chat messages, handling user bans and delete events for you so you don't have to worry about building it yourself.  Chatbox overlays implemented using reactive frameworks like Vue and React should be able to simply reference this.
