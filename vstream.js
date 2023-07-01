@@ -1,3 +1,4 @@
+/* eslint-disable no-bitwise */
 /* eslint-disable no-underscore-dangle */
 import { Decoder } from 'https://cdn.jsdelivr.net/npm/cbor-x@1.5.3/+esm';
 import mitt from 'https://cdn.jsdelivr.net/npm/mitt@3.0.0/+esm';
@@ -122,7 +123,8 @@ const handlers = {
         channelId: message.viewer.channelID,
         displayName: message.viewer.displayName,
         username: message.viewer.username,
-        avatar: message.viewer.pfp.url,
+        avatar: message.viewer.pfp.src,
+        badges: message.viewer.isModerator ? ['moderator'] : [],
       },
     };
   },
@@ -135,7 +137,7 @@ const handlers = {
  * @param {string} videoId
  * @returns
  */
-function connect(channelId, videoId) {
+async function connect(roomId, videoId) {
   const publisher = mitt();
   const profiles = {};
   const chatHistory = {
@@ -143,10 +145,62 @@ function connect(channelId, videoId) {
     messages: [],
   };
 
-  return new Promise((resolve, reject) => {
-    const vstreamListener = new WebSocket(
-      `wss://vstream.com/suika/api/room/${channelId}/${videoId}/websocket`,
+  publisher.on('raw-message', (e) => console.log(JSON.stringify(e)));
+
+  // populate the chat history
+  publisher.on('chat-message', (msg) => {
+    chatHistory.messages.unshift(msg);
+    if (chatHistory.messages.length > chatHistory.sizeLimit) {
+      chatHistory.messages.pop();
+    }
+  });
+
+  publisher.on('chat-deleted', (msg) => {
+    chatHistory.messages = chatHistory.messages.filter(
+      (chat) => {
+        const {
+          id,
+          profile: {
+            id: userId,
+          },
+        } = chat;
+
+        if ('id' in msg) {
+          return id !== msg.id;
+        }
+
+        if ('userId' in msg) {
+          return userId !== msg.id;
+        }
+
+        return true;
+      },
     );
+  });
+
+  publisher.on('user-added', (msg) => {
+    const {
+      [msg.id]: profile = {},
+    } = profiles;
+    profiles[msg.id] = {
+      ...profile,
+      ...msg.profile,
+    };
+  });
+
+  publisher.on('user-removed', ({ userId }) => {
+    delete profiles[userId];
+  });
+
+  let url = `wss://vstream.com/suika/api/room/${roomId}/${videoId}/websocket`;
+
+  // utility API for fetching the WSS endpoint until the vstream API supports CORS
+  if (roomId && !videoId) {
+    url = (await fetch(`https://twitch.erodozer.moe/vstream/wss/${roomId}`).then(r => r.text()));
+  }
+
+  const connection = await new Promise((resolve, reject) => {
+    const vstreamListener = new WebSocket(url);
 
     vstreamListener.addEventListener('message', async (event) => {
       // errors from the API are not always Cbor
@@ -160,7 +214,7 @@ function connect(channelId, videoId) {
       const obj = decoder.decode(buffer);
 
       // if (validate(obj)) {
-      if (obj.__typename in obj) {
+      if (obj.__typename in handlers) {
         let ev = handlers[obj.__typename](obj);
         if (!Array.isArray(ev)) {
           ev = [ev];
@@ -175,60 +229,9 @@ function connect(channelId, videoId) {
       publisher.emit('raw-message', obj);
     });
 
-    publisher.on('raw-message', (e) => console.log(JSON.stringify(e)));
-
-    // populate the chat history
-    publisher.on('chat-message', (msg) => {
-      chatHistory.messages.unshift(msg);
-      if (chatHistory.messages.length > chatHistory.sizeLimit) {
-        chatHistory.messages.pop();
-      }
-    });
-
-    publisher.on('chat-deleted', (msg) => {
-      chatHistory.messages = chatHistory.messages.filter(
-        (chat) => {
-          const {
-            id,
-            profile: {
-              id: userId,
-            },
-          } = chat;
-
-          if ('id' in msg) {
-            return id !== msg.id;
-          }
-
-          if ('userId' in msg) {
-            return userId !== msg.id;
-          }
-
-          return true;
-        },
-      );
-    });
-
-    publisher.on('user-added', (msg) => {
-      const {
-        [msg.id]: profile = {},
-      } = profiles;
-      profiles[msg.id] = {
-        ...profile,
-        ...msg.profile,
-      };
-    });
-
-    publisher.on('user-removed', ({ userId }) => {
-      delete profiles[userId];
-    });
-
     // resolve the Promise once the socket is connected
     vstreamListener.addEventListener('open', () => resolve({
       connection: vstreamListener,
-      channel: {
-        channelId,
-        videoId,
-      },
       addEventListener(type, cb) { publisher.on(type, cb); },
       removeEventListener(type, cb) { publisher.off(type, cb); },
       chatHistory,
@@ -237,6 +240,8 @@ function connect(channelId, videoId) {
 
     vstreamListener.addEventListener('close', reject);
   });
+
+  return connection;
 }
 
 export default connect;

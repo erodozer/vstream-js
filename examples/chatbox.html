@@ -8,9 +8,11 @@
                 position: relative;
             }
 
-            .icon-streamer::after {
+            .icon-moderator::after {
                 content: "";
-                background: url("");
+                background: url("https://vstream.com/build/_assets/moderator-RXLWJZX3.png");
+                background-size: contain;
+                background-position: center;
                 width: 100%;
                 height: 100%;
                 display: block;
@@ -21,10 +23,11 @@
 
             const params = new URLSearchParams(window.location.search);
             const channelId = params.get('channelId');
-            const videoId = params.get('videoId');
-            vstream(channelId, videoId).then(
+            
+            vstream(channelId).then(
                 ch => {
-                    ch.addEventListener('chat-message', onChatMessage)
+                    ch.addEventListener('chat-message', onChatMessage);
+                    ch.addEventListener('user-added', onUserAdded);
                 }
             );
 
@@ -33,7 +36,8 @@
                 const el = document.createElement('div');
                 el.innerHTML = `
                     <div>
-                        ${message.profile.badges.map(b => `<i class="icon icon-${b}"></i>)`).join('')}
+                        <img src="${message.profile.avatar}" height="32" />
+                        ${message.profile.badges?.map(b => `<i class="icon icon-${b}"></i>`).join('')}
                         <span style="color: ${message.profile.color}">${message.profile.displayName}</span>
                     </div>
                     <p>${message.text}</p>
@@ -44,9 +48,24 @@
                     chatbox.firstChild.remove();
                 }
             }
+
+            const viewers = document.querySelector('#viewers');
+            function onUserAdded(message) {
+                const el = document.createElement('div');
+                el.setAttribute("user-id", message.id);
+                el.innerHTML = `
+                    ${
+                        message.avatar ? `<img src="${message.avatar}" height="32" />` : ''
+                    }                    
+                    ${message.badges?.map(b => `<i class="icon icon-${b}"></i>`).join('')}
+                    <span style="color: ${message.color}">${message.displayName}</span>
+                `;
+                viewers.appendChild(el);
+            }
         </script>
     </head>
     <body>
         <div id="chatbox"></div>
+        <div id="viewers"></div>
     </body>
 </html>

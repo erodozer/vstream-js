@@ -18,6 +18,9 @@
           "properties": {
             "url": {
               "type": "string", "format": "uri"
+            },
+            "src": {
+              "type": "string", "format": "uri"
             }
           }
         },
