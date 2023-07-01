@@ -1,6 +1,15 @@
 <html>
     <head>
         <style>
+            body {
+                display: flex;
+                gap: 24px;
+            }
+
+            body > div {
+                flex: 1;
+            }
+
             .icon {
                 width: 1.5em;
                 height: 1.5em;
@@ -8,14 +17,21 @@
                 position: relative;
             }
 
-            .icon-moderator::after {
+            .icon::after {
                 content: "";
-                background: url("https://vstream.com/build/_assets/moderator-RXLWJZX3.png");
                 background-size: contain;
                 background-position: center;
                 width: 100%;
                 height: 100%;
                 display: block;
+            }
+
+            .icon-moderator::after {
+                background-image: url("https://vstream.com/build/_assets/moderator-RXLWJZX3.png");
+            }
+
+            .icon-streamer::after {
+                background-image: url("https://vstream.com/build/_assets/streamer-OL6426YZ.png");
             }
         </style>
         <script type="module">
@@ -65,7 +81,9 @@
         </script>
     </head>
     <body>
-        <div id="chatbox"></div>
+        <div id="chatbox">
+            <div></div>
+        </div>
         <div id="viewers"></div>
     </body>
 </html>

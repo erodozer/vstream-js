@@ -116,6 +116,13 @@ const handlers = {
       }];
   },
   ViewerJoinedEvent(message) {
+    const badges = [];
+    if (message.viewer.isVTuber) {
+      badges.push('streamer');
+    }
+    if (message.viewer.isModerator) {
+      badges.push('moderator');
+    }
     return {
       type: 'user-added',
       event: {
@@ -124,7 +131,7 @@ const handlers = {
         displayName: message.viewer.displayName,
         username: message.viewer.username,
         avatar: message.viewer.pfp.src,
-        badges: message.viewer.isModerator ? ['moderator'] : [],
+        badges,
       },
     };
   },
@@ -196,7 +203,7 @@ async function connect(roomId, videoId) {
 
   // utility API for fetching the WSS endpoint until the vstream API supports CORS
   if (roomId && !videoId) {
-    url = (await fetch(`https://twitch.erodozer.moe/vstream/wss/${roomId}`).then(r => r.text()));
+    url = (await fetch(`https://twitch.erodozer.moe/vstream/wss/${roomId}`).then((r) => r.text()));
   }
 
   const connection = await new Promise((resolve, reject) => {
