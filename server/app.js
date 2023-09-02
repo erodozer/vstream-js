@@ -12,28 +12,37 @@ app.get('/vstream/wss/:channelId', async (req, res) => {
     },
   } = req;
 
-  const {
-    channelProfile: {
-      liveStreaming: {
-        ongoingLiveStream: {
-          id: streamId,
-        },
+  try {
+    const {
+      channelProfile: {
+        liveStreaming: {
+          ongoingLiveStream: {
+            id: streamId,
+          } = {},
+        } = {}
+      } = {}
+    } = await fetch(`https://vstream.com/c/@${channelId}?_data=`).then((r) => r.json());
+    console.log(streamId);
+
+    if (!streamId) {
+      res.code(404).send();
+      return;
+    }
+
+    const {
+      liveStream: {
+          chatRoomWSURL,
       }
-    }
-  } = await fetch(`https://vstream.com/c/@${channelId}?_data=`).then((r) => r.json());
-  console.log(streamId);
+    } = await fetch(`https://vstream.com/v/${streamId}/chat-popout?_data=routes/v_.$liveStreamID.chat-popout`).then((r) => r.json());
+    console.log(chatRoomWSURL);
 
-  const {
-    liveStream: {
-        chatRoomWSURL,
+    if (!chatRoomWSURL) {
+      res.code(404).send();
+    } else {
+      res.send(chatRoomWSURL);
     }
-  } = await fetch(`https://vstream.com/v/${streamId}/chat-popout?_data=routes/v_.$liveStreamID.chat-popout`).then((r) => r.json());
-  console.log(chatRoomWSURL);
-
-  if (!chatRoomWSURL) {
+  } catch {
     res.code(404).send();
-  } else {
-    res.send(chatRoomWSURL);
   }
 });
 

@@ -33,8 +33,11 @@
             .icon-streamer::after {
                 background-image: url("https://vstream.com/build/_assets/streamer-OL6426YZ.png");
             }
+
+
         </style>
         <script type="module">
+            import { createApp, reactive } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js'
             import vstream from '../vstream.js';
 
             const params = new URLSearchParams(window.location.search);
@@ -42,48 +45,43 @@
             
             vstream(channelId).then(
                 ch => {
-                    ch.addEventListener('chat-message', onChatMessage);
-                    ch.addEventListener('user-added', onUserAdded);
+                    console.log("connected to vstream");
+                    createApp({
+                        setup() {
+                            const chatMessages = reactive(ch.store.chatHistory.messages);
+                            const profiles = reactive(ch.store.profiles);
+                            // feed back the reactive proxies to vstream listener
+                            // so array and object mutations update appropriately in vue
+                            ch.store.chatHistory.messages = chatMessages;
+                            ch.store.profiles = profiles;
+                            
+                            return {
+                                chatMessages,
+                                profiles,
+                            }
+                        }
+                    }).mount("#app");
                 }
             );
-
-            const chatbox = document.querySelector('#chatbox');
-            function onChatMessage(message) {
-                const el = document.createElement('div');
-                el.innerHTML = `
-                    <div>
-                        <img src="${message.profile.avatar}" height="32" />
-                        ${message.profile.badges?.map(b => `<i class="icon icon-${b}"></i>`).join('')}
-                        <span style="color: ${message.profile.color}">${message.profile.displayName}</span>
-                    </div>
-                    <p>${message.text}</p>
-                `;
-                chatbox.appendChild(el);
-
-                if (chatbox.childElementCount > 10) {
-                    chatbox.firstChild.remove();
-                }
-            }
-
-            const viewers = document.querySelector('#viewers');
-            function onUserAdded(message) {
-                const el = document.createElement('div');
-                el.setAttribute("user-id", message.id);
-                el.innerHTML = `
-                    ${
-                        message.avatar ? `<img src="${message.avatar}" height="32" />` : ''
-                    }                    
-                    ${message.badges?.map(b => `<i class="icon icon-${b}"></i>`).join('')}
-                    <span style="color: ${message.color}">${message.displayName}</span>
-                `;
-                viewers.appendChild(el);
-            }
         </script>
     </head>
-    <body>
+    <body id="app">
         <div id="chatbox">
-            <div></div>
+            <div v-for="message in chatMessages" :class="{ uplift: message.tip?.amount > 0 }">
+                <div>
+                    <img :src="message.profile?.avatar.src" :srcset="message.profile?.avatar.srcset" height="32" />
+                    <i v-for="badge in message.profile?.badges" class="icon" :class="{ ['icon-'+badge]: true}"></i>
+                    <span :style="{color: message.profile?.color}">{{message.profile?.displayName}}</span>
+                </div>
+                <p>{{message.text}}</p>
+            </div>
         </div>
-        <div id="viewers"></div>
+        <div id="viewers">
+            <div v-for="[id, profile] in profiles" :key="id">
+                <img :src="profile.avatar.src" :srcset="profile.avatar.srcset" height="32" />
+                <i v-for="badge in profile.badges" class="icon" :class="{ ['icon-'+badge]: true}"></i>
+                <span :style="{color: profile.color}">{{profile.displayName}}</span>
+            </div>
+        </div>
     </body>
 </html>

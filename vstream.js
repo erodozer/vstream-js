@@ -47,49 +47,81 @@ function buildHtmlMessage(str, node) {
   }
 }
 
+const ANONYMOUS = {
+  id: null,
+  displayName: 'Anonymous',
+  avatar: {},
+};
+
 /**
  * Adapt Vstream messages into more friendly, generic types
  * already suited for HTML rendering
  */
 const handlers = {
   ChatCreatedEvent(message) {
-    return {
-      type: 'chat-message',
-      event: {
-        id: message.chat.id,
-        profile: {
-          id: message.chat.chatter.userID,
-          channelId: message.chat.chatter.channelID,
-          displayName: message.chat.chatter.username,
-          avatar: message.chat.chatter.pfp.url,
-          badges: message.chat.chatterBadges,
-          color: message.chat.chatterColor,
-        },
-        text: message.chat.nodes.reduce(buildHtmlMessage, ''),
+    return [
+      {
+        type: 'user-added',
+        event: {
+          update: false,
+          profile: {
+            id: message.chat.chatter.userID,
+            channelId: message.chat.chatter.channelID,
+            displayName: message.chat.chatter.username,
+            avatar: {
+              src: message.chat.chatter.pfp.url,
+            },
+            badges: message.chat.chatterBadges,
+            color: message.chat.chatterColor,
+          }
+        }
       },
-    };
+      {
+        type: 'chat-message',
+        event: {
+          id: message.chat.id,
+          profile: message.chat.chatter.userID,
+          text: message.chat.nodes.reduce(buildHtmlMessage, ''),
+        },
+      }
+    ];
   },
   UpliftingChatCreatedEvent(message) {
-    return {
-      type: 'chat-message',
-      event: {
-        id: message.id,
-        profile: {
-          id: message.chat.chatter?.userID,
-          channelId: message.chat.chatter?.channelID,
-          displayName: message.chat.chatter?.username,
-          avatar: message.chat.chatter?.pfp.url,
-          badges: message.chat.chatterBadges,
-          isAnonymous: message.isAnonymous,
-        },
-        tip: {
-          amount: message.tip.amount,
-          currency: message.tip.currency,
-          level: message.tip.level
-        },
-        text: message.chat.nodes.reduce(buildHtmlMessage, ''),
+    const resp = [
+      {
+        type: 'chat-message',
+        event: {
+          id: message.id,
+          profile: message.isAnonymous ? null : message.chat.chatter.userID,
+          tip: {
+            amount: message.tip.amount,
+            currency: message.tip.currency,
+            level: message.tip.level
+          },
+          text: message.chat.nodes.reduce(buildHtmlMessage, ''),
+        }
       }
+    ];
+
+    if (!message.isAnonymous) {
+      resp.push({
+        type: 'user-added',
+        event: {
+          update: false,
+          profile: {
+            id: message.chat.chatter.userID,
+            channelId: message.chat.chatter.channelID,
+            displayName: message.chat.chatter.username,
+            avatar: {
+              src: message.viewer.pfp.src,
+            },
+            badges: message.chat.chatterBadges
+          }
+        }
+      });
     }
+
+    return resp;
   },
   ChatDeletedEvent(message) {
     return {
@@ -148,12 +180,18 @@ const handlers = {
     return {
       type: 'user-added',
       event: {
-        id: message.viewer.userID,
-        channelId: message.viewer.channelID,
-        displayName: message.viewer.displayName,
-        username: message.viewer.username,
-        avatar: message.viewer.pfp.src,
-        badges,
+        update: true,
+        profile: {
+          id: message.viewer.userID,
+          channelId: message.viewer.channelID,
+          displayName: message.viewer.displayName,
+          username: message.viewer.username,
+          avatar: {
+            src: message.viewer.pfp.src,
+            srcset: message.viewer.pfp.srcset,
+          },
+          badges,
+        }
       },
     };
   },
@@ -184,25 +222,32 @@ const handlers = {
  * @returns
  */
 async function connect(roomId, videoId) {
-  const publisher = mitt();
-  const profiles = {};
-  const chatHistory = {
-    sizeLimit: 10,
-    messages: [],
+  const store = {
+    profiles: new Map(),
+    chatHistory: {
+      sizeLimit: 10,
+      messages: [],
+    }
   };
+  const publisher = mitt();
 
   publisher.on('raw-message', (e) => console.log(JSON.stringify(e)));
 
   // populate the chat history
   publisher.on('chat-message', (msg) => {
-    chatHistory.messages.unshift(msg);
-    if (chatHistory.messages.length > chatHistory.sizeLimit) {
-      chatHistory.messages.pop();
+    const chat = {
+      ...msg,
+      profile: msg.profile ? store.profiles[msg.profile] : ANONYMOUS
+    };
+
+    store.chatHistory.messages.unshift(chat);
+    if (store.chatHistory.messages.length > store.chatHistory.sizeLimit) {
+      store.chatHistory.messages.pop();
     }
   });
 
   publisher.on('chat-deleted', (msg) => {
-    chatHistory.messages = chatHistory.messages.filter(
+    store.chatHistory.messages = store.chatHistory.messages.filter(
       (chat) => {
         const {
           id,
@@ -225,17 +270,15 @@ async function connect(roomId, videoId) {
   });
 
   publisher.on('user-added', (msg) => {
-    const {
-      [msg.id]: profile = {},
-    } = profiles;
-    profiles[msg.id] = {
-      ...profile,
-      ...msg.profile,
-    };
+    if (store.profiles.has(msg.profile.id) && (!msg.update)) {
+      return;
+    }
+
+    store.profiles.set(msg.profile.id, msg.profile);
   });
 
   publisher.on('user-removed', ({ userId }) => {
-    delete profiles[userId];
+    store.profiles.delete(userId);
   });
 
   let url = `wss://vstream.com/suika/api/room/${roomId}/${videoId}/websocket`;
@@ -259,6 +302,10 @@ async function connect(roomId, videoId) {
       const buffer = new Uint8Array(await event.data.arrayBuffer());
       const obj = decoder.decode(buffer);
 
+      // emit the message regardless in case the client
+      // doesn't want to use our simplified types
+      publisher.emit('raw-message', obj);
+
       // if (validate(obj)) {
       if (obj.__typename in handlers) {
         let ev = handlers[obj.__typename](obj);
@@ -269,10 +316,6 @@ async function connect(roomId, videoId) {
           publisher.emit(msg.type, msg.event);
         });
       }
-
-      // emit the message regardless in case the client
-      // doesn't want to use our simplified types
-      publisher.emit('raw-message', obj);
     });
 
     // resolve the Promise once the socket is connected
@@ -280,8 +323,7 @@ async function connect(roomId, videoId) {
       connection: vstreamListener,
       addEventListener(type, cb) { publisher.on(type, cb); },
       removeEventListener(type, cb) { publisher.off(type, cb); },
-      chatHistory,
-      profiles,
+      store,
     }));
 
     vstreamListener.addEventListener('close', reject);
