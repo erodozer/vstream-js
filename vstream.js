@@ -69,6 +69,28 @@ const handlers = {
       },
     };
   },
+  UpliftingChatCreatedEvent(message) {
+    return {
+      type: 'chat-message',
+      event: {
+        id: message.id,
+        profile: {
+          id: message.chat.chatter?.userID,
+          channelId: message.chat.chatter?.channelID,
+          displayName: message.chat.chatter?.username,
+          avatar: message.chat.chatter?.pfp.url,
+          badges: message.chat.chatterBadges,
+          isAnonymous: message.isAnonymous,
+        },
+        tip: {
+          amount: message.tip.amount,
+          currency: message.tip.currency,
+          level: message.tip.level
+        },
+        text: message.chat.nodes.reduce(buildHtmlMessage, ''),
+      }
+    }
+  },
   ChatDeletedEvent(message) {
     return {
       type: 'chat-deleted',
@@ -135,6 +157,23 @@ const handlers = {
       },
     };
   },
+  MeteorShowerReceivedEvent(message) {
+    return {
+      type: 'raid',
+      event: {
+        id: message.meteorShowerID,
+        toUser: {
+          videoId: message.receiverVideoID,
+        },
+        fromUser: {
+          channelId: message.senderChannelId,
+          displayName: message.senderDisplayName,
+          username: message.senderUsername,
+        },
+        viewerCount: message.audienceSize,
+      }
+    };
+  }
 };
 
 /**

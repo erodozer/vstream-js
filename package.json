@@ -1,6 +1,6 @@
 {
   "name": "vstream",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Websocket consumer library for VStream API",
   "main": "vstream.js",
   "directories": {},

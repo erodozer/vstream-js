@@ -13,18 +13,28 @@ app.get('/vstream/wss/:channelId', async (req, res) => {
   } = req;
 
   const {
-    ongoingLiveStream: {
-      id: streamId,
-    },
-  } = await fetch(`https://vstream.com/c/@${channelId}?_data=routes/c.$username._index`).then((r) => r.json());
+    channelProfile: {
+      liveStreaming: {
+        ongoingLiveStream: {
+          id: streamId,
+        },
+      }
+    }
+  } = await fetch(`https://vstream.com/c/@${channelId}?_data=`).then((r) => r.json());
   console.log(streamId);
 
   const {
-    chatRoomWSURL,
+    liveStream: {
+        chatRoomWSURL,
+    }
   } = await fetch(`https://vstream.com/v/${streamId}/chat-popout?_data=routes/v_.$liveStreamID.chat-popout`).then((r) => r.json());
   console.log(chatRoomWSURL);
 
-  res.send(chatRoomWSURL);
+  if (!chatRoomWSURL) {
+    res.code(404).send();
+  } else {
+    res.send(chatRoomWSURL);
+  }
 });
 
 app.listen(8888, () => {
