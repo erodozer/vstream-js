@@ -285,7 +285,7 @@ async function connect(roomId, videoId) {
 
   // utility API for fetching the WSS endpoint until the vstream API supports CORS
   if (roomId && !videoId) {
-    url = (await fetch(`https://twitch.erodozer.moe/vstream/wss/${roomId}`).then((r) => r.text()));
+    url = (await fetch(`https://vstream.erodozer.moe/channel/${roomId}/websocket`).then((r) => r.text()));
   }
 
   const connection = await new Promise((resolve, reject) => {
